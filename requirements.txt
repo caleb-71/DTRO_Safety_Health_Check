@@ -1,2 +1,2 @@
-flet==0.22.1
-fpdf2==2.7.9
+fpdf2
+certifi
