@@ -1,4 +1,5 @@
 import flet as ft
+import flet.canvas as cv
 import datetime
 import os
 from database.db_manager import save_checklist
@@ -8,6 +9,94 @@ import components.styles as style
 
 def ChecklistView(page: ft.Page):
     # ==========================================
+    # 서명 데이터 상태 관리
+    # ==========================================
+    signature_strokes = []
+    current_stroke = []
+
+    # 팝업창 도화지
+    signature_canvas = cv.Canvas(shapes=[], expand=True)
+
+    def draw_on_canvas(canvas_obj):
+        elements = []
+        for stroke in signature_strokes:
+            if not stroke: continue
+            path_elements = [cv.Path.MoveTo(stroke[0][0], stroke[0][1])]
+            for x, y in stroke[1:]:
+                path_elements.append(cv.Path.LineTo(x, y))
+
+            elements.append(
+                cv.Path(
+                    elements=path_elements,
+                    paint=ft.Paint(
+                        style=ft.PaintingStyle.STROKE,
+                        color=ft.colors.BLACK,
+                        stroke_width=3,
+                        stroke_cap=ft.StrokeCap.ROUND,
+                        stroke_join=ft.StrokeJoin.ROUND,
+                    )
+                )
+            )
+        canvas_obj.shapes = elements
+        canvas_obj.update()
+
+    def pan_start(e: ft.DragStartEvent):
+        nonlocal current_stroke
+        current_stroke = [(e.local_x, e.local_y)]
+        signature_strokes.append(current_stroke)
+
+    def pan_update(e: ft.DragUpdateEvent):
+        current_stroke.append((e.local_x, e.local_y))
+        draw_on_canvas(signature_canvas)
+
+    def clear_signature(e):
+        signature_strokes.clear()
+        signature_canvas.shapes.clear()
+        signature_canvas.update()
+
+    def save_signature(e):
+        if not signature_strokes:
+            page.snack_bar = ft.SnackBar(ft.Text("서명을 입력해주세요!"), bgcolor=ft.colors.RED_ACCENT)
+            page.snack_bar.open = True
+            page.update()
+            return
+
+        btn_signature.text = "✅ 완료"
+        btn_signature.style = ft.ButtonStyle(
+            color=ft.colors.GREEN_700,
+            bgcolor=ft.colors.GREEN_50,
+            shape=ft.RoundedRectangleBorder(radius=8)
+        )
+        page.dialog.open = False
+        page.update()
+
+    signature_dialog = ft.AlertDialog(
+        title=ft.Text("작업책임자 서명", weight=ft.FontWeight.BOLD),
+        content=ft.Container(
+            width=300, height=150,
+            bgcolor=ft.colors.WHITE,
+            border=ft.border.all(2, style.AppColors.PRIMARY),
+            border_radius=5,
+            content=ft.GestureDetector(
+                on_pan_start=pan_start,
+                on_pan_update=pan_update,
+                drag_interval=10,
+                content=signature_canvas,
+            )
+        ),
+        actions=[
+            ft.TextButton("지우기", on_click=clear_signature),
+            ft.ElevatedButton("저장", on_click=save_signature, bgcolor=style.AppColors.PRIMARY, color=ft.colors.WHITE),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+
+    def open_signature_pad(e):
+        page.dialog = signature_dialog
+        signature_dialog.open = True
+        page.update()
+
+    # ==========================================
     # 1. 입력 필드 생성
     # ==========================================
     task_name_input = ft.TextField(label="작업명", height=40, border_radius=10)
@@ -15,8 +104,16 @@ def ChecklistView(page: ft.Page):
                                    hint_text="달력 클릭 ➔")
     task_time_input = ft.TextField(label="작업시간", height=40, expand=1, border_radius=10, read_only=True,
                                    hint_text="시계 클릭 ➔")
+
     location_input = ft.TextField(label="작업장소", height=40, expand=1, border_radius=10)
-    manager_input = ft.TextField(label="작업책임자", height=40, expand=1, border_radius=10)
+    manager_input = ft.TextField(label="작업책임자 성명", height=40, expand=1, border_radius=10)
+
+    btn_signature = ft.ElevatedButton(
+        text="✍️ 서명",
+        on_click=open_signature_pad,
+        height=40,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8))
+    )
 
     # ==========================================
     # 2. 날짜/시간 선택 이벤트 로직
@@ -35,12 +132,11 @@ def ChecklistView(page: ft.Page):
     time_picker = ft.TimePicker(on_change=on_time_change, help_text="작업 시간을 선택하세요")
 
     # ==========================================
-    # 🌟 3. FilePicker (파일 저장 팝업) 설정
+    # 3. FilePicker (파일 저장 팝업) 설정
     # ==========================================
     def on_file_save_result(e: ft.FilePickerResultEvent):
-        """사용자가 팝업에서 저장 위치와 이름을 지정하고 '저장'을 눌렀을 때 실행"""
         if not e.path:
-            return  # 사용자가 취소를 눌렀다면 아무 동작 안 함
+            return
 
         current_work = list(controls_dict_map.keys())[tabs.selected_index]
         results = {k: v.value for k, v in controls_dict_map[current_work].items()}
@@ -52,10 +148,10 @@ def ChecklistView(page: ft.Page):
             "location": location_input.value,
             "manager_name": manager_input.value,
             "work_type": current_work,
-            "check_results": results
+            "check_results": results,
+            "signature": signature_strokes
         }
 
-        # 선택한 절대 경로(e.path)를 PDF 생성기에 전달!
         success, msg = export_to_pdf(data, e.path)
 
         if success:
@@ -66,35 +162,39 @@ def ChecklistView(page: ft.Page):
         page.update()
 
     file_picker = ft.FilePicker(on_result=on_file_save_result)
-
-    # 오버레이에 픽커들 추가
     page.overlay.extend([date_picker, time_picker, file_picker])
 
     date_btn = ft.IconButton(icon=ft.icons.CALENDAR_MONTH, icon_color=style.AppColors.PRIMARY,
-                             on_click=lambda _: date_picker.pick_date())
+                             on_click=lambda _: date_picker.pick_date(), icon_size=20)
     time_btn = ft.IconButton(icon=ft.icons.ACCESS_TIME, icon_color=style.AppColors.PRIMARY,
-                             on_click=lambda _: time_picker.pick_time())
+                             on_click=lambda _: time_picker.pick_time(), icon_size=20)
 
-    # 기본 정보 카드 조립
+    # ==========================================
+    # 🌟 높이 압축 다이어트 조립 존
+    # ==========================================
     info_card = ft.Container(
         content=ft.Column([
             ft.Row([
-                ft.Icon(ft.icons.EDIT_NOTE, color=style.AppColors.PRIMARY),
-                ft.Text("현장 작업 기본정보", size=18, weight=ft.FontWeight.BOLD, color=style.AppColors.PRIMARY)
+                ft.Icon(ft.icons.EDIT_NOTE, color=style.AppColors.PRIMARY, size=20),
+                ft.Text("현장 작업 기본정보", size=16, weight=ft.FontWeight.BOLD, color=style.AppColors.PRIMARY)
             ]),
-            ft.Divider(height=10, color=ft.colors.TRANSPARENT),
+            # 🌟 변경 1: 투명 Divider 제거하여 세로 10px 절약
             task_name_input,
             ft.Row([
                 ft.Row([task_date_input, date_btn], expand=1, spacing=0),
                 ft.Row([task_time_input, time_btn], expand=1, spacing=0)
-            ], spacing=10),
-            ft.Row([location_input, manager_input]),
-        ]),
+            ], spacing=5),  # 🌟 변경 2: 행 내부 간격 축소 (10 -> 5)
+            ft.Row([
+                location_input,
+                manager_input,
+                btn_signature
+            ], spacing=5),  # 🌟 변경 3: 행 내부 간격 축소 (10 -> 5)
+        ], spacing=5),  # 🌟 변경 4: 메인 기둥 간격 축소 (10 -> 5)
         **style.card_style()
     )
 
     # ==========================================
-    # 4. 체크리스트 데이터 (유지)
+    # 4. 체크리스트 데이터
     # ==========================================
     controls_dict_map = {k: {} for k in ["아크용접", "가스용접", "플라즈마", "테르밋용접", "그라인더/금속절단기"]}
 
@@ -123,7 +223,7 @@ def ChecklistView(page: ft.Page):
         "아크용접": ["• 자동전격방지기 설치 및 정상 작동 여부 확인", "• 홀더의 절연커버 파손 여부 및 규격품 사용 확인", "• 용접 케이블 피복의 손상이나 충전부 노출 확인",
                  "• 작업 중단/종료 시 홀더에서 용접봉 제거 여부", "• 젖은 장갑, 옷, 신발 등 습윤한 상태 작업 여부"],
         "가스용접": ["• 취관(토치) 및 분기관에 역화방지기(안전기) 설치", "• 가스 용기는 40℃ 이하 보관 및 전도 방지 조치", "• 아세틸렌 용기는 반드시 세워서 사용",
-                 "• 호스 및 접속부 가스 누설 여부 점검(비눗물 등)", "• 아세틸렌 사용 압력은 0.1 MPa 이하로 유지", "• 산소 밸브 및 조정기에 기름/그리스 접촉 금지"],
+                 "• 호스 및 접속부 가스 누설 여부 점검(비눗물 등)", "• 아세틸렌 사용 압력은 0.1 MPa 이하로 유지", "• 산소 밸브 및 조정기에 기름/그ريس 접촉 금지"],
         "플라즈마": ["• 냉각 장치의 누수 여부 점검 (절연 성능 저하 방지)", "• 용접기 외함 접지 및 케이블 피복 손상 여부 확인", "• 자동화 설비의 경우 긴급 정지 장치 작동 상태 점검",
                  "• 전원 연결 및 분리 시 반드시 전문가가 수행/전원 차단 확인"],
         "테르밋용접": ["• 고온의 용융 금속 비산 방지용 불연성 덮개 설치 여부", "• 반응 용기 및 모재 예열 시 주변 가연물 점화 방지 조치",
@@ -137,7 +237,13 @@ def ChecklistView(page: ft.Page):
     # ==========================================
     def on_save_click(e):
         if not manager_input.value:
-            page.snack_bar = ft.SnackBar(ft.Text("작업책임자 실명을 입력하세요."), bgcolor=ft.colors.RED_ACCENT)
+            page.snack_bar = ft.SnackBar(ft.Text("작업책임자 성명을 입력하세요."), bgcolor=ft.colors.RED_ACCENT)
+            page.snack_bar.open = True
+            page.update()
+            return
+
+        if not signature_strokes:
+            page.snack_bar = ft.SnackBar(ft.Text("작업책임자의 서명이 누락되었습니다!"), bgcolor=ft.colors.RED_ACCENT)
             page.snack_bar.open = True
             page.update()
             return
@@ -154,14 +260,15 @@ def ChecklistView(page: ft.Page):
             results[item_text] = radio.value
 
         save_checklist(task_name_input.value, task_date_input.value, task_time_input.value, location_input.value,
-                       manager_input.value, current_work, results)
+                       manager_input.value, current_work, results, signature_strokes)
+
         page.snack_bar = ft.SnackBar(ft.Text(f"[{current_work}] 저장 완료!"), bgcolor=style.AppColors.SECONDARY)
         page.snack_bar.open = True
         page.update()
 
     def on_pdf_click(e):
-        if not manager_input.value:
-            page.snack_bar = ft.SnackBar(ft.Text("작업책임자 실명을 입력하세요."), bgcolor=ft.colors.RED_ACCENT)
+        if not manager_input.value or not signature_strokes:
+            page.snack_bar = ft.SnackBar(ft.Text("작업책임자 성명 및 서명을 완료해주세요."), bgcolor=ft.colors.RED_ACCENT)
             page.snack_bar.open = True
             page.update()
             return
@@ -175,19 +282,47 @@ def ChecklistView(page: ft.Page):
                 page.update()
                 return
 
-                # 🌟 디폴트 파일명 미리 생성 (슬래시 제거)
         safe_work_type = current_work.replace("/", "_")
         default_name = f"Safety_Report_{manager_input.value}_{safe_work_type}.pdf"
 
-        # 🌟 PDF를 바로 만들지 않고, 저장 탐색기(FilePicker)를 먼저 호출합니다.
-        # 🌟 PDF를 바로 만들지 않고, 저장 탐색기(FilePicker)를 먼저 호출합니다.
-        file_picker.save_file(
-            file_name=default_name,
-            allowed_extensions=["pdf"]
-        )
+        # 🌟 수집된 데이터 보따리
+        data = {
+            "task_name": task_name_input.value,
+            "task_date": task_date_input.value,
+            "task_time": task_time_input.value,
+            "location": location_input.value,
+            "manager_name": manager_input.value,
+            "work_type": current_work,
+            "check_results": {k: v.value for k, v in controls_dict_map[current_work].items()},
+            "signature": signature_strokes
+        }
+
+        # 🌟 기기 감지: 안드로이드 스마트폰인지 PC인지 확인!
+        if page.platform == ft.PagePlatform.ANDROID:
+            # 안드로이드인 경우: 스마트폰의 'Download' 폴더에 자동 저장
+            download_dir = "/storage/emulated/0/Download"
+            if not os.path.exists(download_dir):
+                download_dir = os.path.expanduser("~")  # 보험용 경로
+
+            target_path = os.path.join(download_dir, default_name)
+            success, msg = export_to_pdf(data, target_path)
+
+            if success:
+                page.snack_bar = ft.SnackBar(ft.Text(f"🎉 스마트폰 '다운로드' 폴더에 저장되었습니다!"), bgcolor=style.AppColors.PRIMARY)
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text(f"❌ 오류 발생: {msg}"), bgcolor=ft.colors.RED)
+            page.snack_bar.open = True
+            page.update()
+
+        else:
+            # PC인 경우: 기존처럼 '다른 이름으로 저장' 창 띄우기
+            file_picker.save_file(
+                file_name=default_name,
+                allowed_extensions=["pdf"]
+            )
 
     # ==========================================
-    # 6. 각 탭 뷰 구성
+    # 6. 各 탭 뷰 구성
     # ==========================================
     def create_section(title, icon, items, work_type, color):
         return ft.Container(
@@ -244,6 +379,7 @@ def ChecklistView(page: ft.Page):
     # 7. 최종 화면 조립
     # ==========================================
     return ft.Column([
-        ft.Container(content=info_card, padding=ft.padding.only(left=20, right=20, top=20)),
+        # 🌟 변경 5: 최상단 카드 외부 여백 축소 (top=20 -> top=10, bottom=5 추가)로 화면 공간 극대화
+        ft.Container(content=info_card, padding=ft.padding.only(left=20, right=20, top=10, bottom=5)),
         tabs
     ], expand=True)
