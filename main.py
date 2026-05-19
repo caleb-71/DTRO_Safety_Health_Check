@@ -1,5 +1,12 @@
 import flet as ft
 
+# 🌟 [자동 호환 패치] 최신 엔진이 탑재되더라도 소문자 코드가 에러 없이 작동하게 만듭니다.
+if hasattr(ft, 'Colors'):
+    ft.colors = ft.Colors
+if hasattr(ft, 'Icons'):
+    ft.icons = ft.Icons
+
+
 from database.db_manager import init_db
 from views.checklist_view import ChecklistView
 from views.history_view import HistoryView
