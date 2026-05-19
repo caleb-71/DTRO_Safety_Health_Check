@@ -3,8 +3,10 @@ import flet.canvas as cv
 import datetime
 import os
 from database.db_manager import save_checklist
-from utils.pdf_exporter import export_to_pdf
 import components.styles as style
+
+# 🌟 기존의 에러 나던 pdf_exporter 대신, 새로 만든 HTML 생성기를 가져옵니다!
+from utils.report_generator import generate_html_report
 
 
 def ChecklistView(page: ft.Page):
@@ -14,7 +16,6 @@ def ChecklistView(page: ft.Page):
     signature_strokes = []
     current_stroke = []
 
-    # 팝업창 도화지
     signature_canvas = cv.Canvas(shapes=[], expand=True)
 
     def draw_on_canvas(canvas_obj):
@@ -132,7 +133,7 @@ def ChecklistView(page: ft.Page):
     time_picker = ft.TimePicker(on_change=on_time_change, help_text="작업 시간을 선택하세요")
 
     # ==========================================
-    # 3. FilePicker (파일 저장 팝업) 설정
+    # 3. FilePicker (PC용 파일 저장 팝업) 설정
     # ==========================================
     def on_file_save_result(e: ft.FilePickerResultEvent):
         if not e.path:
@@ -152,10 +153,11 @@ def ChecklistView(page: ft.Page):
             "signature": signature_strokes
         }
 
-        success, msg = export_to_pdf(data, e.path)
+        # 🌟 HTML 생성 함수로 교체
+        success, msg = generate_html_report(data, e.path)
 
         if success:
-            page.snack_bar = ft.SnackBar(ft.Text(f"🎉 PDF 성공적으로 저장됨: {msg}"), bgcolor=style.AppColors.PRIMARY)
+            page.snack_bar = ft.SnackBar(ft.Text(f"🎉 HTML 성공적으로 저장됨!"), bgcolor=style.AppColors.PRIMARY)
         else:
             page.snack_bar = ft.SnackBar(ft.Text(f"❌ 오류 발생: {msg}"), bgcolor=ft.colors.RED)
         page.snack_bar.open = True
@@ -170,7 +172,7 @@ def ChecklistView(page: ft.Page):
                              on_click=lambda _: time_picker.pick_time(), icon_size=20)
 
     # ==========================================
-    # 🌟 높이 압축 다이어트 조립 존
+    # 조립 존
     # ==========================================
     info_card = ft.Container(
         content=ft.Column([
@@ -178,18 +180,17 @@ def ChecklistView(page: ft.Page):
                 ft.Icon(ft.icons.EDIT_NOTE, color=style.AppColors.PRIMARY, size=20),
                 ft.Text("현장 작업 기본정보", size=16, weight=ft.FontWeight.BOLD, color=style.AppColors.PRIMARY)
             ]),
-            # 🌟 변경 1: 투명 Divider 제거하여 세로 10px 절약
             task_name_input,
             ft.Row([
                 ft.Row([task_date_input, date_btn], expand=1, spacing=0),
                 ft.Row([task_time_input, time_btn], expand=1, spacing=0)
-            ], spacing=5),  # 🌟 변경 2: 행 내부 간격 축소 (10 -> 5)
+            ], spacing=5),
             ft.Row([
                 location_input,
                 manager_input,
                 btn_signature
-            ], spacing=5),  # 🌟 변경 3: 행 내부 간격 축소 (10 -> 5)
-        ], spacing=5),  # 🌟 변경 4: 메인 기둥 간격 축소 (10 -> 5)
+            ], spacing=5),
+        ], spacing=5),
         **style.card_style()
     )
 
@@ -233,7 +234,7 @@ def ChecklistView(page: ft.Page):
     }
 
     # ==========================================
-    # 5. 버튼 이벤트 (저장/PDF)
+    # 5. 버튼 이벤트 (저장/HTML)
     # ==========================================
     def on_save_click(e):
         if not manager_input.value:
@@ -266,7 +267,8 @@ def ChecklistView(page: ft.Page):
         page.snack_bar.open = True
         page.update()
 
-    def on_pdf_click(e):
+    # 🌟 기존 PDF 버튼 로직을 HTML 로직으로 완벽 교체!
+    def on_html_report_click(e):
         if not manager_input.value or not signature_strokes:
             page.snack_bar = ft.SnackBar(ft.Text("작업책임자 성명 및 서명을 완료해주세요."), bgcolor=ft.colors.RED_ACCENT)
             page.snack_bar.open = True
@@ -276,16 +278,15 @@ def ChecklistView(page: ft.Page):
         current_work = list(controls_dict_map.keys())[tabs.selected_index]
         for item_text, radio in controls_dict_map[current_work].items():
             if not radio.value:
-                page.snack_bar = ft.SnackBar(ft.Text(f"⚠️ 체크되지 않은 항목이 있어 PDF를 생성할 수 없습니다.\n{item_text}"),
+                page.snack_bar = ft.SnackBar(ft.Text(f"⚠️ 체크되지 않은 항목이 있어 보고서를 생성할 수 없습니다.\n{item_text}"),
                                              bgcolor=ft.colors.RED_700, duration=4000)
                 page.snack_bar.open = True
                 page.update()
                 return
 
         safe_work_type = current_work.replace("/", "_")
-        default_name = f"Safety_Report_{manager_input.value}_{safe_work_type}.pdf"
+        default_name = f"Safety_Report_{manager_input.value}_{safe_work_type}.html"
 
-        # 🌟 수집된 데이터 보따리
         data = {
             "task_name": task_name_input.value,
             "task_date": task_date_input.value,
@@ -297,28 +298,23 @@ def ChecklistView(page: ft.Page):
             "signature": signature_strokes
         }
 
-        # 🌟 기기 감지: 안드로이드 스마트폰인지 PC인지 확인!
         if page.platform == ft.PagePlatform.ANDROID:
-            # 안드로이드인 경우: 스마트폰의 'Download' 폴더에 자동 저장
-            download_dir = "/storage/emulated/0/Download"
-            if not os.path.exists(download_dir):
-                download_dir = os.path.expanduser("~")  # 보험용 경로
-
-            target_path = os.path.join(download_dir, default_name)
-            success, msg = export_to_pdf(data, target_path)
+            # 안드로이드: Download 폴더에 .html 파일로 자동 저장
+            success, msg = generate_html_report(data)  # save_path 없이 보내면 알아서 다운로드 폴더로 갑니다.
 
             if success:
-                page.snack_bar = ft.SnackBar(ft.Text(f"🎉 스마트폰 '다운로드' 폴더에 저장되었습니다!"), bgcolor=style.AppColors.PRIMARY)
+                page.snack_bar = ft.SnackBar(ft.Text(f"🎉 스마트폰 '다운로드' 폴더에 보고서가 발행되었습니다!"),
+                                             bgcolor=style.AppColors.PRIMARY)
             else:
                 page.snack_bar = ft.SnackBar(ft.Text(f"❌ 오류 발생: {msg}"), bgcolor=ft.colors.RED)
             page.snack_bar.open = True
             page.update()
 
         else:
-            # PC인 경우: 기존처럼 '다른 이름으로 저장' 창 띄우기
+            # PC: HTML 파일 형식으로 저장 창 띄우기
             file_picker.save_file(
                 file_name=default_name,
-                allowed_extensions=["pdf"]
+                allowed_extensions=["html"]
             )
 
     # ==========================================
@@ -342,14 +338,17 @@ def ChecklistView(page: ft.Page):
             gradient=style.SAVE_BUTTON_GRADIENT, border_radius=12, shadow=style.COMMON_SHADOW,
             margin=ft.padding.only(top=10)
         )
-        pdf_btn = ft.Container(
-            content=ft.ElevatedButton("PDF 보고서 발행", on_click=on_pdf_click, icon=ft.icons.PICTURE_AS_PDF,
+
+        # 🌟 버튼 텍스트와 아이콘, 동작 함수 변경!
+        html_btn = ft.Container(
+            content=ft.ElevatedButton("보고서 발행 (HTML)", on_click=on_html_report_click, icon=ft.icons.WEB,
                                       style=ft.ButtonStyle(color=style.AppColors.WHITE, bgcolor=ft.colors.TRANSPARENT,
                                                            shadow_color=ft.colors.TRANSPARENT), width=float('inf'),
                                       height=55),
             gradient=style.PDF_BUTTON_GRADIENT, border_radius=12, shadow=style.COMMON_SHADOW,
             margin=ft.padding.only(bottom=20)
         )
+
         return ft.ListView(
             expand=True, spacing=10, padding=20,
             controls=[
@@ -357,7 +356,7 @@ def ChecklistView(page: ft.Page):
                 create_section(f"{work_type} 특화점검", ft.icons.GAVEL, specific_items[work_type], work_type,
                                style.AppColors.SECONDARY),
                 create_section("보건/위생관리", ft.icons.HEALTH_AND_SAFETY, health_items, work_type, ft.colors.GREEN_800),
-                save_btn, pdf_btn
+                save_btn, html_btn
             ]
         )
 
@@ -379,7 +378,6 @@ def ChecklistView(page: ft.Page):
     # 7. 최종 화면 조립
     # ==========================================
     return ft.Column([
-        # 🌟 변경 5: 최상단 카드 외부 여백 축소 (top=20 -> top=10, bottom=5 추가)로 화면 공간 극대화
         ft.Container(content=info_card, padding=ft.padding.only(left=20, right=20, top=10, bottom=5)),
         tabs
     ], expand=True)

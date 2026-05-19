@@ -70,8 +70,24 @@ def get_all_records():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
+    # 최신 기록이 맨 위로 오도록 내림차순(DESC) 정렬
     cursor.execute('SELECT * FROM checklist_records ORDER BY id DESC')
     rows = cursor.fetchall()
 
     conn.close()
     return rows
+
+
+def delete_record(record_id):
+    """
+    기록 조회 화면에서 선택한 ID의 점검 데이터를 SQLite DB에서 완벽하게 지우는 함수
+    """
+    # 🌟 상단에 선언해둔 DB_FILE 변수를 깔끔하게 재활용합니다!
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+
+    # 🌟 진짜 테이블 이름인 'checklist_records'로 완벽하게 수정!
+    cursor.execute("DELETE FROM checklist_records WHERE id = ?", (record_id,))
+
+    conn.commit()
+    conn.close()
