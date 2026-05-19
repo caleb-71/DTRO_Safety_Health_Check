@@ -91,3 +91,18 @@ def delete_record(record_id):
 
     conn.commit()
     conn.close()
+
+
+def delete_all_records():
+    """
+    설정 화면에서 호출 시, DB의 모든 점검 기록을 완전히 초기화하는 함수
+    """
+    import sqlite3
+    conn = sqlite3.connect("dtro_safety.db")  # 상단에 정의된 DB_FILE 변수를 쓰셔도 됩니다.
+    cursor = conn.cursor()
+
+    # checklist_records 테이블의 모든 데이터를 싹 지웁니다.
+    cursor.execute("DELETE FROM checklist_records")
+
+    conn.commit()
+    conn.close()

@@ -3,7 +3,7 @@ import flet as ft
 def WorkerView(page: ft.Page):
     # 1. 스마트폰 저장소에서 기존 명단 불러오기 (없으면 기본값 세팅)
     saved_workers = page.client_storage.get("workers")
-    workers_list = saved_workers if saved_workers else ["홍길동", "김철수", "이영희"]
+    workers_list = saved_workers if saved_workers else ["홍길동"]
 
     # 명단이 그려질 시각적 리스트
     worker_list_ui = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True, spacing=10)
