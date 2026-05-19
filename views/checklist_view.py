@@ -375,9 +375,12 @@ def ChecklistView(page: ft.Page):
     )
 
     # ==========================================
-    # 7. 최종 화면 조립
+    # 7. 최종 화면 조립 (바짝 올리기 튜닝 완료)
     # ==========================================
     return ft.Column([
-        ft.Container(content=info_card, padding=ft.padding.only(left=20, right=20, top=10, bottom=5)),
-        tabs
-    ], expand=True)
+        # 🌟 상단 카드의 외부 여백을 대폭 줄였습니다 (top=10 -> 5, bottom=5 -> 0)
+        ft.Container(content=info_card, padding=ft.padding.only(left=20, right=20, top=5, bottom=0)),
+
+        # 🌟 카드와 탭 메뉴 사이의 불필요한 공백을 없애기 위해 투명 컨테이너로 감싸고 상단 마진을 -5로 당겼습니다.
+        ft.Container(content=tabs, expand=True, margin=ft.padding.only(top=-5))
+    ], expand=True, spacing=0)  # 🌟 기둥 자체의 기본 간격도 0으로 꽉 조였습니다.
