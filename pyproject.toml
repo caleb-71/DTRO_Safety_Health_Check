@@ -1,0 +1,13 @@
+[project]
+name = "dtro-safety-health-check"
+version = "1.0.0"
+description = "DTRO 안전보건 체크리스트"
+requires-python = ">=3.10"
+dependencies = [
+    "flet",
+    "certifi"
+]
+
+[tool.flet.app]
+# 최신 엔진 호환을 위한 설정
+path = "."
