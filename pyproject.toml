@@ -9,7 +9,7 @@ dependencies = [
 
 [tool.flet]
 org = "com.dtro"
-product = "DTRO 안전보건"
+product = "DTRO 안전계획"
 
 [tool.flet.android]
 min_sdk_version = 21
