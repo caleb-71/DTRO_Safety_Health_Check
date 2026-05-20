@@ -17,11 +17,12 @@ def StatsView(page: ft.Page):
     # 1. 총 점검 건수 요약 카드
     summary_card = ft.Container(
         content=ft.Column([
-            ft.Text("누적 안전 점검 건수", size=16, color=ft.colors.WHITE70),
-            ft.Text(f"{total_count} 건", size=35, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+            ft.Text("누적 안전 점검 건수", size=16, color=ft.Colors.WHITE70),
+            ft.Text(f"{total_count} 건", size=35, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         ], alignment=ft.MainAxisAlignment.CENTER),
-        bgcolor=ft.colors.BLUE_800,
-        padding=20,
+        bgcolor=ft.Colors.BLUE_800,
+        # ✅ 최신 규격 ft.Padding 적용
+        padding=ft.Padding(20, 20, 20, 20),
         border_radius=15,
         width=float('inf')
     )
@@ -37,20 +38,35 @@ def StatsView(page: ft.Page):
                 content=ft.Column([
                     ft.Row([ft.Text(w_type, weight=ft.FontWeight.BOLD), ft.Text(f"{count}건")],
                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.ProgressBar(value=ratio, color=ft.colors.BLUE_500, bgcolor=ft.colors.BLUE_100, height=10)
+                    ft.ProgressBar(value=ratio, color=ft.Colors.BLUE_500, bgcolor=ft.Colors.BLUE_100, height=10)
                 ]),
-                padding=15,
-                bgcolor=ft.colors.WHITE,
+                # ✅ 최신 규격 ft.Padding 및 ft.Border 적용
+                padding=ft.Padding(15, 15, 15, 15),
+                bgcolor=ft.Colors.WHITE,
                 border_radius=10,
-                border=ft.border.all(1, ft.colors.BLACK12)
+                border=ft.Border(
+                    top=ft.BorderSide(1, ft.Colors.BLACK12),
+                    bottom=ft.BorderSide(1, ft.Colors.BLACK12),
+                    left=ft.BorderSide(1, ft.Colors.BLACK12),
+                    right=ft.BorderSide(1, ft.Colors.BLACK12)
+                )
             )
         )
 
     return ft.Column([
         ft.Container(
             content=ft.Text("점검 통계 대시보드", size=20, weight=ft.FontWeight.BOLD),
-            padding=ft.padding.only(left=20, top=20, bottom=10)
+            # ✅ 최신 규격 ft.padding.only -> ft.Padding
+            padding=ft.Padding(left=20, top=20, right=0, bottom=10)
         ),
-        ft.Container(content=summary_card, padding=ft.padding.symmetric(horizontal=20)),
-        ft.Container(content=stats_list, padding=20, expand=True)
+        ft.Container(
+            content=summary_card,
+            # ✅ 최신 규격 ft.padding.symmetric -> ft.Padding
+            padding=ft.Padding(left=20, top=0, right=20, bottom=0)
+        ),
+        ft.Container(
+            content=stats_list,
+            padding=ft.Padding(20, 20, 20, 20),
+            expand=True
+        )
     ], expand=True, scroll=ft.ScrollMode.AUTO)

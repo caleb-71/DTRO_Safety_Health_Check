@@ -15,9 +15,9 @@ def HistoryView(page: ft.Page):
         if not records:
             list_view.controls.append(
                 ft.Container(
-                    content=ft.Text("저장된 점검 기록이 없습니다.", size=16, color=ft.colors.GREY_500),
-                    alignment=ft.alignment.center,
-                    padding=50
+                    content=ft.Text("저장된 점검 기록이 없습니다.", size=16, color=ft.Colors.GREY_500),
+                    alignment=ft.Alignment(0, 0), # ft.alignment.center 대신 절대좌표 사용
+                    padding=ft.Padding(50, 50, 50, 50)
                 )
             )
         else:
@@ -51,20 +51,20 @@ def HistoryView(page: ft.Page):
 
                         detail_content.controls.append(ft.Text(f"📋 {t_name}", size=20, weight=ft.FontWeight.BOLD))
                         detail_content.controls.append(ft.Text(f"• 책임자: {m_name}\n• 작업일자: {t_date}\n• 저장시간: {c_at}"))
-                        detail_content.controls.append(ft.Divider(height=1, color=ft.colors.GREY_300))
+                        detail_content.controls.append(ft.Divider(height=1, color=ft.Colors.GREY_300))
                         detail_content.controls.append(
-                            ft.Text(f"[{w_type}] 체크 결과", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_700))
+                            ft.Text(f"[{w_type}] 체크 결과", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700))
 
                         for item_text, result in results_dict.items():
-                            color = ft.colors.GREEN_700 if result == "확인" else (
-                                ft.colors.GREY_700 if result == "해당없음" else ft.colors.RED_700)
+                            color = ft.Colors.GREEN_700 if result == "확인" else (
+                                ft.Colors.GREY_700 if result == "해당없음" else ft.Colors.RED_700)
                             detail_content.controls.append(ft.Text(f"{item_text} : {result}", color=color))
 
                         # 서명 도화지 복원
                         if signature_strokes:
-                            detail_content.controls.append(ft.Divider(height=1, color=ft.colors.GREY_300))
+                            detail_content.controls.append(ft.Divider(height=1, color=ft.Colors.GREY_300))
                             detail_content.controls.append(
-                                ft.Text("✍️ 작업책임자 서명", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_700))
+                                ft.Text("✍️ 작업책임자 서명", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700))
 
                             elements = []
                             for stroke in signature_strokes:
@@ -74,18 +74,26 @@ def HistoryView(page: ft.Page):
                                     path_elements.append(cv.Path.LineTo(x, y))
                                 elements.append(cv.Path(
                                     elements=path_elements,
-                                    paint=ft.Paint(style=ft.PaintingStyle.STROKE, color=ft.colors.BLACK, stroke_width=3,
+                                    paint=ft.Paint(style=ft.PaintingStyle.STROKE, color=ft.Colors.BLACK, stroke_width=3,
                                                    stroke_cap=ft.StrokeCap.ROUND, stroke_join=ft.StrokeJoin.ROUND)
                                 ))
 
                             sig_canvas = cv.Canvas(shapes=elements, width=300, height=150)
                             detail_content.controls.append(
-                                ft.Container(content=sig_canvas, border=ft.border.all(1, ft.colors.BLACK26),
-                                             border_radius=5, bgcolor=ft.colors.WHITE)
+                                ft.Container(
+                                    content=sig_canvas,
+                                    # ft.border.all -> ft.Border 최신 규격으로 교체
+                                    border=ft.Border(
+                                        top=ft.BorderSide(1, ft.Colors.BLACK26),
+                                        bottom=ft.BorderSide(1, ft.Colors.BLACK26),
+                                        left=ft.BorderSide(1, ft.Colors.BLACK26),
+                                        right=ft.BorderSide(1, ft.Colors.BLACK26)
+                                    ),
+                                    border_radius=5, bgcolor=ft.Colors.WHITE)
                             )
 
                         # ==========================================
-                        # 🌟 버튼 기능 함수 정의 (무조건 dlg 조립보다 위에 있어야 합니다!)
+                        # 🌟 버튼 기능 함수 정의
                         # ==========================================
                         def close_dlg(e):
                             dlg.open = False
@@ -107,21 +115,21 @@ def HistoryView(page: ft.Page):
 
                             if success:
                                 page.snack_bar = ft.SnackBar(ft.Text("🎉 다운로드 폴더에 보고서가 발행되었습니다!"),
-                                                             bgcolor=ft.colors.BLUE_800)
+                                                             bgcolor=ft.Colors.BLUE_800)
                             else:
-                                page.snack_bar = ft.SnackBar(ft.Text(f"❌ 발행 실패: {msg}"), bgcolor=ft.colors.RED_700)
+                                page.snack_bar = ft.SnackBar(ft.Text(f"❌ 발행 실패: {msg}"), bgcolor=ft.Colors.RED_700)
                             page.snack_bar.open = True
                             dlg.open = False
                             page.update()
 
                         def remove_record(e):
                             def confirm_delete(cp_e):
-                                delete_record(r_id)  # DB에서 삭제
+                                delete_record(r_id)
                                 confirm_dlg.open = False
                                 dlg.open = False
-                                refresh_data()  # 리스트 새로고침
+                                refresh_data()
                                 page.snack_bar = ft.SnackBar(ft.Text("🗑️ 기록이 성공적으로 삭제되었습니다."),
-                                                             bgcolor=ft.colors.GREY_700)
+                                                             bgcolor=ft.Colors.GREY_700)
                                 page.snack_bar.open = True
                                 page.update()
 
@@ -134,8 +142,8 @@ def HistoryView(page: ft.Page):
                                 content=ft.Text("정말로 이 점검 기록을 영구 삭제하시겠습니까?"),
                                 actions=[
                                     ft.TextButton("취소", on_click=cancel_delete),
-                                    ft.ElevatedButton("삭제", on_click=confirm_delete, bgcolor=ft.colors.RED_700,
-                                                      color=ft.colors.WHITE)
+                                    # ElevatedButton의 text= 대신 content=ft.Text() 사용
+                                    ft.ElevatedButton(content=ft.Text("삭제", color=ft.Colors.WHITE), on_click=confirm_delete, bgcolor=ft.Colors.RED_700)
                                 ]
                             )
                             page.dialog = confirm_dlg
@@ -143,14 +151,14 @@ def HistoryView(page: ft.Page):
                             page.update()
 
                         # ==========================================
-                        # 🌟 팝업창 조립 (함수를 다 읽은 후 가장 마지막에 조립합니다)
+                        # 🌟 팝업창 조립
                         # ==========================================
                         dlg = ft.AlertDialog(
                             content=detail_content,
                             actions=[
-                                ft.IconButton(icon=ft.icons.PICTURE_AS_PDF, icon_color=ft.colors.BLUE_800,
+                                ft.IconButton(icon=ft.Icons.PICTURE_AS_PDF, icon_color=ft.Colors.BLUE_800,
                                               tooltip="HTML 보고서 발행", on_click=print_html_report),
-                                ft.IconButton(icon=ft.icons.DELETE_FOREVER, icon_color=ft.colors.RED_600,
+                                ft.IconButton(icon=ft.Icons.DELETE_FOREVER, icon_color=ft.Colors.RED_600,
                                               tooltip="기록 삭제", on_click=remove_record),
                                 ft.TextButton("닫기", on_click=close_dlg)
                             ]
@@ -164,10 +172,10 @@ def HistoryView(page: ft.Page):
 
                 card = ft.Card(
                     content=ft.ListTile(
-                        leading=ft.Icon(ft.icons.ASSIGNMENT, color=ft.colors.BLUE_700, size=30),
+                        leading=ft.Icon(ft.Icons.ASSIGNMENT, color=ft.Colors.BLUE_700, size=30),
                         title=ft.Text(f"[{work_type}] {task_name}", weight=ft.FontWeight.BOLD),
                         subtitle=ft.Text(f"책임자: {manager_name} | 일자: {task_date}\n기록: {created_at}"),
-                        trailing=ft.Icon(ft.icons.CHEVRON_RIGHT),
+                        trailing=ft.Icon(ft.Icons.CHEVRON_RIGHT),
                         on_click=create_show_detail_func(record_id, task_name, task_date, task_time, location,
                                                          manager_name, work_type, check_results_json,
                                                          signature_json, created_at)
@@ -177,16 +185,17 @@ def HistoryView(page: ft.Page):
         page.update()
 
     # 최초 화면 진입 시 데이터 로드
-    list_view = ft.ListView(expand=True, spacing=10, padding=20)
+    list_view = ft.ListView(expand=True, spacing=10, padding=ft.Padding(20, 20, 20, 20))
     refresh_data()
 
     return ft.Column([
         ft.Container(
             content=ft.Row([
                 ft.Text("과거 점검 기록", size=20, weight=ft.FontWeight.BOLD),
-                ft.IconButton(icon=ft.icons.REFRESH, on_click=lambda _: refresh_data(), tooltip="새로고침")
+                ft.IconButton(icon=ft.Icons.REFRESH, on_click=lambda _: refresh_data(), tooltip="새로고침")
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=ft.padding.only(left=20, top=20, bottom=10, right=20)
+            # ft.padding.only -> ft.Padding 최신 규격 교체
+            padding=ft.Padding(left=20, top=20, right=20, bottom=10)
         ),
         list_view
     ], expand=True)

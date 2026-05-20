@@ -1,14 +1,9 @@
 import flet as ft
 
-# =====================================================
-# 🛡️ Flet 버전 호환 패치
-# ft.colors / ft.Colors 두 버전 모두 안전하게 처리
-# =====================================================
+# 🛡️ 최신 버전 호환 패치
 _C = ft.Colors if hasattr(ft, 'Colors') else ft.colors
 _I = ft.Icons if hasattr(ft, 'Icons') else ft.icons
 
-
-# 🌈 브랜드 컬러 정의
 class AppColors:
     PRIMARY       = _C.BLUE_800
     PRIMARY_LIGHT = _C.BLUE_50
@@ -19,8 +14,6 @@ class AppColors:
     TEXT_MAIN     = _C.BLUE_GREY_900
     TEXT_SUB      = _C.BLUE_GREY_400
 
-
-# ✨ 그림자(Shadow) 설정
 COMMON_SHADOW = ft.BoxShadow(
     spread_radius=1,
     blur_radius=12,
@@ -28,32 +21,28 @@ COMMON_SHADOW = ft.BoxShadow(
     offset=ft.Offset(0, 5)
 )
 
-# 🌊 그라데이션 버튼 스타일
 SAVE_BUTTON_GRADIENT = ft.LinearGradient(
-    begin=ft.alignment.top_left,
-    end=ft.alignment.bottom_right,
+    begin=ft.Alignment(-1.0, -1.0),
+    end=ft.Alignment(1.0, 1.0),
     colors=[_C.BLUE_700, _C.INDIGO_800]
 )
 
 PDF_BUTTON_GRADIENT = ft.LinearGradient(
-    begin=ft.alignment.top_left,
-    end=ft.alignment.bottom_right,
+    begin=ft.Alignment(-1.0, -1.0),
+    end=ft.Alignment(1.0, 1.0),
     colors=[_C.ORANGE_700, _C.RED_700]
 )
 
-
-# 📦 카드 스타일 정의
 def card_style():
     return {
         "padding": 20,
         "bgcolor": AppColors.WHITE,
         "border_radius": 18,
-        "margin": ft.padding.only(bottom=15),
+        # ✅ 최신 버전 Flet 규격: ft.padding.only() 제거 후 ft.Margin() 사용
+        "margin": ft.Margin(left=0, top=0, right=0, bottom=15),
         "shadow": COMMON_SHADOW
     }
 
-
-# 🔘 라디오 버튼 스타일
 RADIO_THEME = {
     "confirm": _C.TEAL_500,
     "none":    _C.AMBER_700

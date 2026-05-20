@@ -1,5 +1,7 @@
+# 가상환경 폴더 제외
 .venv/
+.venv_linux/
+venv_ubuntu/
+
+# 빌드 결과물 제외
 build/
-.idea/
-__pycache__/
-*.pyc
