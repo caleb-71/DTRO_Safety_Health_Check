@@ -1,5 +1,5 @@
 [project]
-name = "dtro-safety-health-check"
+name = "dtro_safety"
 version = "1.0.0"
 description = "DTRO 안전보건 체크리스트"
 requires-python = ">=3.10"
@@ -7,8 +7,13 @@ dependencies = [
     "flet",
 ]
 
-[tool.flet.app]
-path = "."
+[tool.flet]
+org = "com.dtro"
+product = "DTRO 안전보건"
 
 [tool.flet.android]
 min_sdk_version = 21
+permissions = [
+    "WRITE_EXTERNAL_STORAGE",
+    "READ_EXTERNAL_STORAGE",
+]

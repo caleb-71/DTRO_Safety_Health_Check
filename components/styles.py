@@ -1,21 +1,30 @@
 import flet as ft
 
+# =====================================================
+# 🛡️ Flet 버전 호환 패치
+# ft.colors / ft.Colors 두 버전 모두 안전하게 처리
+# =====================================================
+_C = ft.Colors if hasattr(ft, 'Colors') else ft.colors
+_I = ft.Icons if hasattr(ft, 'Icons') else ft.icons
+
+
 # 🌈 브랜드 컬러 정의
 class AppColors:
-    PRIMARY = ft.colors.BLUE_800
-    PRIMARY_LIGHT = ft.colors.BLUE_50
-    SECONDARY = ft.colors.TEAL_700
-    ACCENT = ft.colors.DEEP_ORANGE_600
-    BACKGROUND = ft.colors.GREY_100
-    WHITE = ft.colors.WHITE
-    TEXT_MAIN = ft.colors.BLUE_GREY_900
-    TEXT_SUB = ft.colors.BLUE_GREY_400
+    PRIMARY       = _C.BLUE_800
+    PRIMARY_LIGHT = _C.BLUE_50
+    SECONDARY     = _C.TEAL_700
+    ACCENT        = _C.DEEP_ORANGE_600
+    BACKGROUND    = _C.GREY_100
+    WHITE         = _C.WHITE
+    TEXT_MAIN     = _C.BLUE_GREY_900
+    TEXT_SUB      = _C.BLUE_GREY_400
+
 
 # ✨ 그림자(Shadow) 설정
 COMMON_SHADOW = ft.BoxShadow(
     spread_radius=1,
     blur_radius=12,
-    color=ft.colors.with_opacity(0.15, ft.colors.BLACK),
+    color=ft.Colors.with_opacity(0.15, _C.BLACK) if hasattr(ft, 'Colors') else ft.colors.with_opacity(0.15, _C.BLACK),
     offset=ft.Offset(0, 5)
 )
 
@@ -23,14 +32,15 @@ COMMON_SHADOW = ft.BoxShadow(
 SAVE_BUTTON_GRADIENT = ft.LinearGradient(
     begin=ft.alignment.top_left,
     end=ft.alignment.bottom_right,
-    colors=[ft.colors.BLUE_700, ft.colors.INDIGO_800]
+    colors=[_C.BLUE_700, _C.INDIGO_800]
 )
 
 PDF_BUTTON_GRADIENT = ft.LinearGradient(
     begin=ft.alignment.top_left,
     end=ft.alignment.bottom_right,
-    colors=[ft.colors.ORANGE_700, ft.colors.RED_700]
+    colors=[_C.ORANGE_700, _C.RED_700]
 )
+
 
 # 📦 카드 스타일 정의
 def card_style():
@@ -42,8 +52,9 @@ def card_style():
         "shadow": COMMON_SHADOW
     }
 
+
 # 🔘 라디오 버튼 스타일
 RADIO_THEME = {
-    "confirm": ft.colors.TEAL_500,
-    "none": ft.colors.AMBER_700
+    "confirm": _C.TEAL_500,
+    "none":    _C.AMBER_700
 }
