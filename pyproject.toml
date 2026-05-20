@@ -5,9 +5,10 @@ description = "DTRO 안전보건 체크리스트"
 requires-python = ">=3.10"
 dependencies = [
     "flet",
-    "certifi"
 ]
 
 [tool.flet.app]
-# 최신 엔진 호환을 위한 설정
 path = "."
+
+[tool.flet.android]
+min_sdk_version = 21
