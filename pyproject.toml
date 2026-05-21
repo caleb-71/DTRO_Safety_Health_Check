@@ -9,7 +9,7 @@ dependencies = [
 
 [tool.flet]
 org = "com.dtro"
-product = "DTRO 안전계획"
+product = "DTRO화기작업체크"
 
 # ✅ 앱 아이콘 — 프로젝트 루트의 Image01.png 사용
 # Flet 빌드 시 Android 다양한 해상도(mdpi~xxxhdpi)로 자동 변환
