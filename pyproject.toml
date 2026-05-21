@@ -1,5 +1,5 @@
 [project]
-name = "dtro_safety"
+name = "dtro_safety_health_check"
 version = "1.0.0"
 description = "DTRO 안전보건 체크리스트"
 requires-python = ">=3.10"
@@ -10,6 +10,10 @@ dependencies = [
 [tool.flet]
 org = "com.dtro"
 product = "DTRO 안전계획"
+
+# ✅ 앱 아이콘 — 프로젝트 루트의 Image01.png 사용
+# Flet 빌드 시 Android 다양한 해상도(mdpi~xxxhdpi)로 자동 변환
+icon = "Image01.png"
 
 [tool.flet.android]
 min_sdk_version = 24
