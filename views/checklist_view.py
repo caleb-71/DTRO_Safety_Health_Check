@@ -14,7 +14,134 @@ def ChecklistView(page: ft.Page):
     current_stroke    = []
 
     # ==========================================
-    # 🌟 2. 서명 패드 — BottomSheet
+    # 🌟 2. 알림 헬퍼 — 가장 먼저 정의
+    #   모든 섹션에서 호출되므로 최상단에 위치
+    # ==========================================
+
+    # --- SnackBar: 입력 누락 등 간단 경고 ---
+    def _show_snack(msg: str, color):
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text(msg),
+            bgcolor=color,
+        )
+        page.snack_bar.open = True
+        page.update()
+
+    # --- 결과 BottomSheet: 저장/발행 완료·오류 안내 ---
+    _r_icon  = ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_700, size=30)
+    _r_title = ft.Text("", size=17, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+    _r_msg   = ft.Text("", size=13, color=style.AppColors.TEXT_MAIN)
+
+    def _close_result(e):
+        result_sheet.open = False
+        page.update()
+
+    result_sheet = ft.BottomSheet(
+        open=False,
+        content=ft.Container(
+            padding=ft.Padding(24, 24, 24, 36),
+            content=ft.Column(
+                tight=True,
+                spacing=16,
+                controls=[
+                    ft.Row([_r_icon, _r_title], spacing=12),
+                    _r_msg,
+                    ft.ElevatedButton(
+                        content=ft.Text("확인", color=ft.Colors.WHITE,
+                                        weight=ft.FontWeight.BOLD),
+                        on_click=_close_result,
+                        bgcolor=style.AppColors.PRIMARY,
+                        height=46,
+                        width=float("inf"),
+                    ),
+                ],
+            ),
+        ),
+    )
+
+    def _show_result(title: str, msg: str, success: bool = True):
+        _r_icon.name   = ft.Icons.CHECK_CIRCLE if success else ft.Icons.ERROR_OUTLINE
+        _r_icon.color  = ft.Colors.GREEN_700   if success else ft.Colors.RED_700
+        _r_title.value = title
+        _r_title.color = ft.Colors.GREEN_700   if success else ft.Colors.RED_700
+        _r_msg.value   = msg
+        result_sheet.open = True
+        page.update()
+
+    # --- 미체크 항목 안내 BottomSheet ---
+    _unchecked_col = ft.Column(spacing=6, scroll=ft.ScrollMode.AUTO)
+
+    def _close_unchecked(e):
+        unchecked_sheet.open = False
+        page.update()
+
+    unchecked_sheet = ft.BottomSheet(
+        open=False,
+        content=ft.Container(
+            padding=ft.Padding(20, 20, 20, 30),
+            content=ft.Column(
+                tight=True,
+                spacing=12,
+                controls=[
+                    ft.Row([
+                        ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED,
+                                color=ft.Colors.ORANGE_700, size=22),
+                        ft.Text("미체크 항목 안내", size=17,
+                                weight=ft.FontWeight.BOLD,
+                                color=ft.Colors.ORANGE_700),
+                    ], spacing=8),
+                    ft.Text(
+                        "아래 항목들을 확인 또는 해당없음으로 선택해주세요.",
+                        size=13, color=ft.Colors.BLUE_GREY_600,
+                    ),
+                    ft.Divider(height=4),
+                    ft.Container(content=_unchecked_col, height=280),
+                    ft.ElevatedButton(
+                        content=ft.Text("확인", color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.ORANGE_700,
+                        height=46,
+                        width=float("inf"),
+                        on_click=_close_unchecked,
+                    ),
+                ],
+            ),
+        ),
+    )
+
+    def _show_unchecked(missing: list):
+        _unchecked_col.controls.clear()
+        for i, item in enumerate(missing, 1):
+            _unchecked_col.controls.append(
+                ft.Container(
+                    content=ft.Row([
+                        ft.Container(
+                            content=ft.Text(str(i), size=11, color=ft.Colors.WHITE,
+                                            weight=ft.FontWeight.BOLD,
+                                            text_align=ft.TextAlign.CENTER),
+                            width=22, height=22,
+                            bgcolor=ft.Colors.ORANGE_700,
+                            border_radius=11,
+                            alignment=ft.Alignment(0, 0),
+                        ),
+                        ft.Text(item, size=13, color=ft.Colors.BLUE_GREY_800,
+                                expand=True),
+                    ], spacing=10),
+                    padding=ft.Padding(10, 8, 10, 8),
+                    bgcolor=ft.Colors.ORANGE_50,
+                    border_radius=8,
+                    border=ft.Border(
+                        top=ft.BorderSide(1, ft.Colors.ORANGE_200),
+                        bottom=ft.BorderSide(1, ft.Colors.ORANGE_200),
+                        left=ft.BorderSide(1, ft.Colors.ORANGE_200),
+                        right=ft.BorderSide(1, ft.Colors.ORANGE_200),
+                    ),
+                )
+            )
+        unchecked_sheet.open = True
+        page.update()
+
+    # ==========================================
+    # 🌟 3. 서명 패드 — BottomSheet
     # ==========================================
     sign_hint = ft.Text(
         "✍️  이곳에 마우스(또는 손가락)로 서명하세요",
@@ -23,7 +150,6 @@ def ChecklistView(page: ft.Page):
         text_align=ft.TextAlign.CENTER,
         visible=True,
     )
-
     signature_canvas = cv.Canvas(shapes=[], expand=True)
 
     def _redraw():
@@ -73,7 +199,7 @@ def ChecklistView(page: ft.Page):
             _show_snack("서명을 먼저 그려주세요!", ft.Colors.RED_ACCENT)
             return
         _set_sign_btn_state(done=True)
-        sign_bottom_sheet.open = False
+        sign_sheet.open = False
         page.update()
 
     def _set_sign_btn_state(done: bool):
@@ -103,7 +229,7 @@ def ChecklistView(page: ft.Page):
             sign_btn.bgcolor = None
         sign_btn.update()
 
-    sign_bottom_sheet = ft.BottomSheet(
+    sign_sheet = ft.BottomSheet(
         open=False,
         content=ft.Container(
             padding=ft.Padding(20, 16, 20, 30),
@@ -166,7 +292,7 @@ def ChecklistView(page: ft.Page):
     )
 
     # ==========================================
-    # 🌟 3. 작업자 입력 — BottomSheet
+    # 🌟 4. 작업자 입력 — BottomSheet
     # ==========================================
     worker_name_field = ft.TextField(
         label="작업자 이름 입력",
@@ -187,7 +313,7 @@ def ChecklistView(page: ft.Page):
         manager_icon.visible = False
         manager_btn.data     = name
         manager_btn.update()
-        worker_bottom_sheet.open = False
+        worker_sheet_input.open = False
         page.update()
 
     def confirm_worker_name(e):
@@ -227,7 +353,7 @@ def ChecklistView(page: ft.Page):
                 )
             )
 
-    worker_bottom_sheet = ft.BottomSheet(
+    worker_sheet_input = ft.BottomSheet(
         open=False,
         content=ft.Container(
             padding=ft.Padding(20, 20, 20, 30),
@@ -258,7 +384,7 @@ def ChecklistView(page: ft.Page):
     )
 
     # ==========================================
-    # 🌟 4. 날짜 / 시간 선택
+    # 🌟 5. 날짜 / 시간 선택
     # ==========================================
     def on_date_change(e):
         if e.control.value:
@@ -279,23 +405,30 @@ def ChecklistView(page: ft.Page):
     date_picker = ft.DatePicker(on_change=on_date_change)
     time_picker = ft.TimePicker(on_change=on_time_change)
 
-    # ✅ overlay 위젯 등록
+    # ==========================================
+    # ✅ overlay 전체 등록 — 모든 BottomSheet/Picker
+    # ==========================================
     page.overlay.extend([
-        sign_bottom_sheet,
-        worker_bottom_sheet,
+        result_sheet,
+        unchecked_sheet,
+        sign_sheet,
+        worker_sheet_input,
         date_picker,
         time_picker,
     ])
 
+    # ==========================================
+    # 🌟 6. 열기 이벤트 핸들러
+    # ==========================================
     def open_signature_pad(e):
         sign_hint.visible = not bool(signature_strokes)
-        sign_bottom_sheet.open = True
+        sign_sheet.open = True
         page.update()
 
     def open_worker_input(e):
         worker_name_field.value = ""
         build_worker_list()
-        worker_bottom_sheet.open = True
+        worker_sheet_input.open = True
         page.update()
 
     def open_date_picker(e):
@@ -307,7 +440,7 @@ def ChecklistView(page: ft.Page):
         page.update()
 
     # ==========================================
-    # 🌟 5. 기본정보 카드 레이아웃
+    # 🌟 7. 기본정보 카드 레이아웃
     # ==========================================
     task_name_input = ft.TextField(
         label="작업명", height=45, expand=6, border_radius=8,
@@ -375,36 +508,26 @@ def ChecklistView(page: ft.Page):
     )
 
     # ==========================================
-    # 🌟 6. 체크리스트 데이터
+    # 🌟 8. 체크리스트 데이터
     # ==========================================
     work_types_list   = ["아크용접", "가스용접", "플라즈마", "테르밋용접", "그라인더/금속절단기"]
     controls_dict_map = {k: {} for k in work_types_list}
     active_tab        = {"work_type": work_types_list[0]}
 
     def make_check_item(text, work_type, is_specific=False):
-        # ✅ is_specific 값에 따라 라디오 버튼의 배치 순서를 결정합니다.
+        # ✅ dead code 완전 제거 — return 이후 중복 블록 삭제
         if is_specific:
-            radio_controls = [
+            radios = [
                 ft.Radio(value="해당없음", label="해당없음", fill_color=style.RADIO_THEME["none"]),
-                ft.Radio(value="확인", label="확인", fill_color=style.RADIO_THEME["confirm"])
+                ft.Radio(value="확인",    label="확인",    fill_color=style.RADIO_THEME["confirm"]),
             ]
         else:
-            radio_controls = [
-                ft.Radio(value="확인", label="확인", fill_color=style.RADIO_THEME["confirm"]),
-                ft.Radio(value="해당없음", label="해당없음", fill_color=style.RADIO_THEME["none"])
+            radios = [
+                ft.Radio(value="확인",    label="확인",    fill_color=style.RADIO_THEME["confirm"]),
+                ft.Radio(value="해당없음", label="해당없음", fill_color=style.RADIO_THEME["none"]),
             ]
-
-        rg = ft.RadioGroup(content=ft.Row(radio_controls, spacing=20))
-        controls_dict_map[work_type][text] = rg
-
-        return ft.Container(
-            content=ft.Column([
-                ft.Text(text, weight=ft.FontWeight.W_600, color=style.AppColors.TEXT_MAIN),
-                rg,
-            ], spacing=5),
-            padding=15, bgcolor=ft.Colors.BLUE_GREY_50, border_radius=12,
-        )
-        controls_dict_map[work_type][text] = rg
+        rg = ft.RadioGroup(content=ft.Row(radios, spacing=20))
+        controls_dict_map[work_type][text] = rg  # ← return 전 1회만 등록
         return ft.Container(
             content=ft.Column([
                 ft.Text(text, weight=ft.FontWeight.W_600, color=style.AppColors.TEXT_MAIN),
@@ -461,136 +584,10 @@ def ChecklistView(page: ft.Page):
     }
 
     # ==========================================
-    # 🌟 7. 팝업 안내(Alert, SnackBar) 및 미체크 항목 안내 BottomSheet
-    # ==========================================
-    def _show_snack(msg: str, color):
-        page.snack_bar = ft.SnackBar(
-            content=ft.Text(msg),
-            bgcolor=color,
-        )
-        page.snack_bar.open = True
-        page.update()
-
-    # ✅ 화면 중앙에 뜨는 완료/오류 알림 팝업창 (새로 추가됨)
-    def _show_alert(title: str, msg: str, success: bool = True):
-        def close_dialog(e):
-            dialog.open = False
-            page.update()
-
-        dialog = ft.AlertDialog(
-            modal=True,
-            title=ft.Row([
-                ft.Icon(
-                    ft.Icons.CHECK_CIRCLE if success else ft.Icons.ERROR_OUTLINED,
-                    color=ft.Colors.GREEN_700 if success else ft.Colors.RED_700,
-                    size=26
-                ),
-                ft.Text(title, weight=ft.FontWeight.BOLD, size=18)
-            ], spacing=10),
-            content=ft.Text(msg, size=14, color=style.AppColors.TEXT_MAIN),
-            actions=[
-                ft.ElevatedButton(
-                    content=ft.Text("확인", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
-                    on_click=close_dialog,
-                    bgcolor=style.AppColors.PRIMARY,
-                    height=40
-                )
-            ],
-            actions_alignment=ft.MainAxisAlignment.END,
-        )
-        page.dialog = dialog
-        dialog.open = True
-        page.update()
-
-    # ✅ 기존 미체크 항목 안내 기능 (100% 보존됨)
-    _unchecked_list_col = ft.Column(spacing=6, scroll=ft.ScrollMode.AUTO)
-
-    def _close_unchecked_sheet(e):
-        unchecked_bottom_sheet.open = False
-        page.update()
-
-    unchecked_bottom_sheet = ft.BottomSheet(
-        open=False,
-        content=ft.Container(
-            padding=ft.Padding(20, 20, 20, 30),
-            content=ft.Column(
-                tight=True,
-                spacing=12,
-                controls=[
-                    ft.Row([
-                        ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, color=ft.Colors.ORANGE_700, size=22),
-                        ft.Text(
-                            "미체크 항목 안내",
-                            size=17, weight=ft.FontWeight.BOLD,
-                            color=ft.Colors.ORANGE_700,
-                        ),
-                    ], spacing=8),
-                    ft.Text(
-                        "아래 항목들을 확인 또는 해당없음으로 선택해주세요.",
-                        size=13, color=ft.Colors.BLUE_GREY_600,
-                    ),
-                    ft.Divider(height=4),
-                    ft.Container(
-                        content=_unchecked_list_col,
-                        height=280,
-                    ),
-                    ft.ElevatedButton(
-                        content=ft.Text("확인", color=ft.Colors.WHITE),
-                        bgcolor=ft.Colors.ORANGE_700,
-                        height=46,
-                        width=float("inf"),
-                        on_click=_close_unchecked_sheet,
-                    ),
-                ],
-            ),
-        ),
-    )
-    page.overlay.append(unchecked_bottom_sheet)
-
-    def _show_unchecked(missing_items: list):
-        _unchecked_list_col.controls.clear()
-        for i, item in enumerate(missing_items, 1):
-            _unchecked_list_col.controls.append(
-                ft.Container(
-                    content=ft.Row([
-                        ft.Container(
-                            content=ft.Text(
-                                str(i),
-                                size=11,
-                                color=ft.Colors.WHITE,
-                                weight=ft.FontWeight.BOLD,
-                                text_align=ft.TextAlign.CENTER,
-                            ),
-                            width=22, height=22,
-                            bgcolor=ft.Colors.ORANGE_700,
-                            border_radius=11,
-                            alignment=ft.Alignment(0, 0),
-                        ),
-                        ft.Text(
-                            item,
-                            size=13,
-                            color=ft.Colors.BLUE_GREY_800,
-                            expand=True,
-                        ),
-                    ], spacing=10),
-                    padding=ft.Padding(10, 8, 10, 8),
-                    bgcolor=ft.Colors.ORANGE_50,
-                    border_radius=8,
-                    border=ft.Border(
-                        top=ft.BorderSide(1, ft.Colors.ORANGE_200),
-                        bottom=ft.BorderSide(1, ft.Colors.ORANGE_200),
-                        left=ft.BorderSide(1, ft.Colors.ORANGE_200),
-                        right=ft.BorderSide(1, ft.Colors.ORANGE_200),
-                    ),
-                )
-            )
-        unchecked_bottom_sheet.open = True
-        page.update()
-
-    # ==========================================
-    # 🌟 8. DB 저장
+    # 🌟 9. DB 저장
     # ==========================================
     def on_save_click(e):
+        # 기본정보 검증
         if date_text.value == "일자":
             _show_snack("작업 일자를 선택하세요.", ft.Colors.RED_ACCENT)
             return
@@ -604,44 +601,38 @@ def ChecklistView(page: ft.Page):
             _show_snack("작업자 서명이 누락되었습니다!", ft.Colors.RED_ACCENT)
             return
 
+        # 미체크 항목 수집
         current_work = active_tab["work_type"]
-        missing = [
-            item_text
-            for item_text, radio in controls_dict_map[current_work].items()
-            if not radio.value
-        ]
+        missing = [t for t, r in controls_dict_map[current_work].items() if not r.value]
         if missing:
-            _show_unchecked(missing)  # ✅ 기존 미체크 알림창 정상 호출
+            _show_unchecked(missing)
             return
 
-        results = {
-            item_text: radio.value
-            for item_text, radio in controls_dict_map[current_work].items()
-        }
+        # DB 저장 실행
+        results = {t: r.value for t, r in controls_dict_map[current_work].items()}
         try:
             save_checklist(
-                task_name_input.value,
-                date_text.value,
-                time_text.value,
-                location_input.value,
-                manager_btn.data,
-                current_work,
-                results,
-                signature_strokes,
+                task_name_input.value, date_text.value, time_text.value,
+                location_input.value, manager_btn.data, current_work,
+                results, signature_strokes,
             )
-            # ✅ 성공 시 모달 팝업 호출
-            _show_alert(
-                title="데이터 저장 완료",
-                msg=f"[{current_work}] 점검 내역 및 서명이 자체 데이터베이스(DB)에 안전하게 등록되었습니다.",
-                success=True
+            _show_result(
+                title="DB 저장 완료",
+                msg=f"[{current_work}] 점검 내역 및 서명이\n데이터베이스에 저장되었습니다.",
+                success=True,
             )
         except Exception as ex:
-            _show_alert(title="저장 오류 발생", msg=f"데이터를 저장하는 중 문제가 발생했습니다:\n{ex}", success=False)
+            _show_result(
+                title="저장 오류",
+                msg=f"저장 중 문제가 발생했습니다:\n{ex}",
+                success=False,
+            )
 
     # ==========================================
-    # 🌟 9. HTML 보고서 발행
+    # 🌟 10. HTML 보고서 발행
     # ==========================================
     def on_html_report_click(e):
+        # 기본정보 검증
         if date_text.value == "일자":
             _show_snack("작업 일자를 선택하세요.", ft.Colors.RED_ACCENT)
             return
@@ -655,55 +646,49 @@ def ChecklistView(page: ft.Page):
             _show_snack("작업자 서명이 누락되었습니다!", ft.Colors.RED_ACCENT)
             return
 
+        # 미체크 항목 수집
         current_work = active_tab["work_type"]
-        missing = [
-            item_text
-            for item_text, radio in controls_dict_map[current_work].items()
-            if not radio.value
-        ]
+        missing = [t for t, r in controls_dict_map[current_work].items() if not r.value]
         if missing:
-            _show_unchecked(missing)  # ✅ 기존 미체크 알림창 정상 호출
+            _show_unchecked(missing)
             return
 
         data = {
-            "task_name": task_name_input.value,
-            "task_date": date_text.value,
-            "task_time": time_text.value,
-            "location": location_input.value,
-            "manager_name": manager_btn.data,
-            "work_type": current_work,
+            "task_name":     task_name_input.value,
+            "task_date":     date_text.value,
+            "task_time":     time_text.value,
+            "location":      location_input.value,
+            "manager_name":  manager_btn.data,
+            "work_type":     current_work,
             "check_results": {k: v.value for k, v in controls_dict_map[current_work].items()},
-            "signature": signature_strokes,
+            "signature":     signature_strokes,
         }
 
         try:
-            success, msg = generate_html_report(data)
-            if success:
-                # ✅ 성공 시 모달 팝업 호출
-                _show_alert(
-                    title="보고서 발행 성공",
-                    msg="화기작업 안전보건 점검 보고서(HTML) 파일이 기기의 다운로드 폴더에 정상적으로 저장되었습니다.\n\n즉시 PC 보관 및 사내 게시가 가능합니다.",
-                    success=True
+            ok, msg = generate_html_report(data)
+            if ok:
+                _show_result(
+                    title="보고서 발행 완료",
+                    msg="HTML 보고서가 기기의\n다운로드 폴더에 저장되었습니다.",
+                    success=True,
                 )
             else:
-                _show_alert(title="발행 실패", msg=f"보고서 파일 생성에 실패했습니다:\n{msg}", success=False)
+                _show_result(title="발행 실패", msg=f"보고서 생성 실패:\n{msg}", success=False)
         except Exception as ex:
-            _show_alert(title="오류 발생", msg=f"보고서 발행 중 예외가 발생했습니다:\n{ex}", success=False)
+            _show_result(title="오류 발생", msg=f"보고서 발행 중 오류:\n{ex}", success=False)
 
     # ==========================================
-    # 🌟 10. 체크리스트 탭 구성
+    # 🌟 11. 체크리스트 탭 구성
     # ==========================================
     def create_section(title, icon, items, work_type, color):
-        # ✅ 타이틀에 "특화점검"이라는 단어가 포함되어 있으면 True를 전달합니다.
-        is_specific_section = "특화점검" in title
-
+        is_specific = "특화점검" in title
         return ft.Container(
             content=ft.Column([
                 ft.Row([
                     ft.Icon(icon, color=color),
                     ft.Text(title, size=18, weight=ft.FontWeight.BOLD, color=color),
                 ]),
-                *[make_check_item(i, work_type, is_specific=is_specific_section) for i in items],
+                *[make_check_item(i, work_type, is_specific=is_specific) for i in items],
             ], spacing=12),
             **style.card_style(),
         )
