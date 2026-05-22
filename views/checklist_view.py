@@ -381,11 +381,29 @@ def ChecklistView(page: ft.Page):
     controls_dict_map = {k: {} for k in work_types_list}
     active_tab        = {"work_type": work_types_list[0]}
 
-    def make_check_item(text, work_type):
-        rg = ft.RadioGroup(content=ft.Row([
-            ft.Radio(value="확인",    label="확인",    fill_color=style.RADIO_THEME["confirm"]),
-            ft.Radio(value="해당없음", label="해당없음", fill_color=style.RADIO_THEME["none"]),
-        ], spacing=20))
+    def make_check_item(text, work_type, is_specific=False):
+        # ✅ is_specific 값에 따라 라디오 버튼의 배치 순서를 결정합니다.
+        if is_specific:
+            radio_controls = [
+                ft.Radio(value="해당없음", label="해당없음", fill_color=style.RADIO_THEME["none"]),
+                ft.Radio(value="확인", label="확인", fill_color=style.RADIO_THEME["confirm"])
+            ]
+        else:
+            radio_controls = [
+                ft.Radio(value="확인", label="확인", fill_color=style.RADIO_THEME["confirm"]),
+                ft.Radio(value="해당없음", label="해당없음", fill_color=style.RADIO_THEME["none"])
+            ]
+
+        rg = ft.RadioGroup(content=ft.Row(radio_controls, spacing=20))
+        controls_dict_map[work_type][text] = rg
+
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(text, weight=ft.FontWeight.W_600, color=style.AppColors.TEXT_MAIN),
+                rg,
+            ], spacing=5),
+            padding=15, bgcolor=ft.Colors.BLUE_GREY_50, border_radius=12,
+        )
         controls_dict_map[work_type][text] = rg
         return ft.Container(
             content=ft.Column([
@@ -443,10 +461,9 @@ def ChecklistView(page: ft.Page):
     }
 
     # ==========================================
-    # 🌟 7. SnackBar 헬퍼 + 미체크 항목 안내 BottomSheet
+    # 🌟 7. 팝업 안내(Alert, SnackBar) 및 미체크 항목 안내 BottomSheet
     # ==========================================
     def _show_snack(msg: str, color):
-        # ✅ Flet 0.85 지원 파라미터만 사용
         page.snack_bar = ft.SnackBar(
             content=ft.Text(msg),
             bgcolor=color,
@@ -454,7 +471,38 @@ def ChecklistView(page: ft.Page):
         page.snack_bar.open = True
         page.update()
 
-    # 미체크 항목 목록을 BottomSheet로 표시
+    # ✅ 화면 중앙에 뜨는 완료/오류 알림 팝업창 (새로 추가됨)
+    def _show_alert(title: str, msg: str, success: bool = True):
+        def close_dialog(e):
+            dialog.open = False
+            page.update()
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Row([
+                ft.Icon(
+                    ft.Icons.CHECK_CIRCLE if success else ft.Icons.ERROR_OUTLINED,
+                    color=ft.Colors.GREEN_700 if success else ft.Colors.RED_700,
+                    size=26
+                ),
+                ft.Text(title, weight=ft.FontWeight.BOLD, size=18)
+            ], spacing=10),
+            content=ft.Text(msg, size=14, color=style.AppColors.TEXT_MAIN),
+            actions=[
+                ft.ElevatedButton(
+                    content=ft.Text("확인", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
+                    on_click=close_dialog,
+                    bgcolor=style.AppColors.PRIMARY,
+                    height=40
+                )
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.dialog = dialog
+        dialog.open = True
+        page.update()
+
+    # ✅ 기존 미체크 항목 안내 기능 (100% 보존됨)
     _unchecked_list_col = ft.Column(spacing=6, scroll=ft.ScrollMode.AUTO)
 
     def _close_unchecked_sheet(e):
@@ -563,7 +611,7 @@ def ChecklistView(page: ft.Page):
             if not radio.value
         ]
         if missing:
-            _show_unchecked(missing)
+            _show_unchecked(missing)  # ✅ 기존 미체크 알림창 정상 호출
             return
 
         results = {
@@ -581,9 +629,14 @@ def ChecklistView(page: ft.Page):
                 results,
                 signature_strokes,
             )
-            _show_snack(f"[{current_work}] DB 저장 완료!", style.AppColors.SECONDARY)
+            # ✅ 성공 시 모달 팝업 호출
+            _show_alert(
+                title="데이터 저장 완료",
+                msg=f"[{current_work}] 점검 내역 및 서명이 자체 데이터베이스(DB)에 안전하게 등록되었습니다.",
+                success=True
+            )
         except Exception as ex:
-            _show_snack(f"저장 오류: {ex}", ft.Colors.RED_700)
+            _show_alert(title="저장 오류 발생", msg=f"데이터를 저장하는 중 문제가 발생했습니다:\n{ex}", success=False)
 
     # ==========================================
     # 🌟 9. HTML 보고서 발행
@@ -609,41 +662,48 @@ def ChecklistView(page: ft.Page):
             if not radio.value
         ]
         if missing:
-            _show_unchecked(missing)
+            _show_unchecked(missing)  # ✅ 기존 미체크 알림창 정상 호출
             return
 
         data = {
-            "task_name":     task_name_input.value,
-            "task_date":     date_text.value,
-            "task_time":     time_text.value,
-            "location":      location_input.value,
-            "manager_name":  manager_btn.data,
-            "work_type":     current_work,
+            "task_name": task_name_input.value,
+            "task_date": date_text.value,
+            "task_time": time_text.value,
+            "location": location_input.value,
+            "manager_name": manager_btn.data,
+            "work_type": current_work,
             "check_results": {k: v.value for k, v in controls_dict_map[current_work].items()},
-            "signature":     signature_strokes,
+            "signature": signature_strokes,
         }
 
-        # report_generator.py 가 Windows/Android 경로 자동 분기
         try:
             success, msg = generate_html_report(data)
             if success:
-                _show_snack("다운로드 폴더에 보고서가 저장되었습니다!", style.AppColors.PRIMARY)
+                # ✅ 성공 시 모달 팝업 호출
+                _show_alert(
+                    title="보고서 발행 성공",
+                    msg="화기작업 안전보건 점검 보고서(HTML) 파일이 기기의 다운로드 폴더에 정상적으로 저장되었습니다.\n\n즉시 PC 보관 및 사내 게시가 가능합니다.",
+                    success=True
+                )
             else:
-                _show_snack(f"발행 실패: {msg}", ft.Colors.RED_700)
+                _show_alert(title="발행 실패", msg=f"보고서 파일 생성에 실패했습니다:\n{msg}", success=False)
         except Exception as ex:
-            _show_snack(f"오류: {ex}", ft.Colors.RED_700)
+            _show_alert(title="오류 발생", msg=f"보고서 발행 중 예외가 발생했습니다:\n{ex}", success=False)
 
     # ==========================================
     # 🌟 10. 체크리스트 탭 구성
     # ==========================================
     def create_section(title, icon, items, work_type, color):
+        # ✅ 타이틀에 "특화점검"이라는 단어가 포함되어 있으면 True를 전달합니다.
+        is_specific_section = "특화점검" in title
+
         return ft.Container(
             content=ft.Column([
                 ft.Row([
                     ft.Icon(icon, color=color),
                     ft.Text(title, size=18, weight=ft.FontWeight.BOLD, color=color),
                 ]),
-                *[make_check_item(i, work_type) for i in items],
+                *[make_check_item(i, work_type, is_specific=is_specific_section) for i in items],
             ], spacing=12),
             **style.card_style(),
         )
