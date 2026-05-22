@@ -1,5 +1,6 @@
 import flet as ft
 import flet.canvas as cv
+from datetime import datetime
 from database.db_manager import save_checklist, get_all_workers
 import components.styles as style
 from utils.report_generator import generate_html_report
@@ -456,13 +457,16 @@ def ChecklistView(page: ft.Page):
     )
     row_1 = ft.Row([task_name_input, location_input], spacing=8)
 
-    date_text    = ft.Text("일자",   size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_400)
-    time_text    = ft.Text("시간",   size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_400)
+    # ✅ 현재 시스템 시각을 기본값으로 자동 설정
+    _now = datetime.now()
+    date_text    = ft.Text(_now.strftime("%Y.%m.%d"), size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK)
+    time_text    = ft.Text(_now.strftime("%H:%M"),    size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK)
     manager_text = ft.Text("작업자", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_400)
     sign_text    = ft.Text("서명",   size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_400)
 
-    date_icon    = ft.Icon(ft.Icons.CALENDAR_MONTH, size=20, color=style.AppColors.PRIMARY)
-    time_icon    = ft.Icon(ft.Icons.ACCESS_TIME,    size=20, color=style.AppColors.PRIMARY)
+    # ✅ 초기값이 채워져 있으므로 아이콘 숨김 처리
+    date_icon    = ft.Icon(ft.Icons.CALENDAR_MONTH, size=20, color=style.AppColors.PRIMARY, visible=False)
+    time_icon    = ft.Icon(ft.Icons.ACCESS_TIME,    size=20, color=style.AppColors.PRIMARY, visible=False)
     manager_icon = ft.Icon(ft.Icons.PERSON_SEARCH,  size=20, color=style.AppColors.PRIMARY)
     sign_icon    = ft.Icon(ft.Icons.DRAW,           size=20, color=style.AppColors.PRIMARY)
 
@@ -588,12 +592,6 @@ def ChecklistView(page: ft.Page):
     # ==========================================
     def on_save_click(e):
         # 기본정보 검증
-        if date_text.value == "일자":
-            _show_snack("작업 일자를 선택하세요.", ft.Colors.RED_ACCENT)
-            return
-        if time_text.value == "시간":
-            _show_snack("작업 시간을 선택하세요.", ft.Colors.RED_ACCENT)
-            return
         if not manager_btn.data:
             _show_snack("작업자를 입력하세요.", ft.Colors.RED_ACCENT)
             return
@@ -633,12 +631,6 @@ def ChecklistView(page: ft.Page):
     # ==========================================
     def on_html_report_click(e):
         # 기본정보 검증
-        if date_text.value == "일자":
-            _show_snack("작업 일자를 선택하세요.", ft.Colors.RED_ACCENT)
-            return
-        if time_text.value == "시간":
-            _show_snack("작업 시간을 선택하세요.", ft.Colors.RED_ACCENT)
-            return
         if not manager_btn.data:
             _show_snack("작업자를 입력하세요.", ft.Colors.RED_ACCENT)
             return
