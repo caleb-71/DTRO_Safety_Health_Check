@@ -4,32 +4,107 @@ import json
 
 from database.db_manager import get_all_records, delete_record
 from utils.report_generator import generate_html_report
+from utils.email_sender import send_report_email   # ✅ 이메일 전송 연동
 
 
 def HistoryView(page: ft.Page):
 
     # ==========================================
-    # 🌟 상세보기 BottomSheet — 미리 조립 후 overlay 등록
+    # 🌟 결과 알림 BottomSheet (이메일 전송 결과 표시)
+    #    checklist_view.py 와 동일한 패턴 사용
+    # ==========================================
+    _r_icon  = ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_700, size=28)
+    _r_title = ft.Text("", size=17, weight=ft.FontWeight.BOLD)
+    _r_msg   = ft.Text("", size=13, color=ft.Colors.BLUE_GREY_700)
+
+    def _close_result(e):
+        result_sheet.open = False
+        page.update()
+
+    result_sheet = ft.BottomSheet(
+        open=False,
+        content=ft.Container(
+            padding=ft.Padding(24, 24, 24, 36),
+            content=ft.Column(
+                tight=True, spacing=14,
+                controls=[
+                    ft.Row([_r_icon, _r_title], spacing=10),
+                    _r_msg,
+                    ft.ElevatedButton(
+                        content=ft.Text("확인", color=ft.Colors.WHITE,
+                                        weight=ft.FontWeight.BOLD),
+                        on_click=_close_result,
+                        bgcolor=ft.Colors.BLUE_800,
+                        height=46,
+                        width=float("inf"),
+                    ),
+                ],
+            ),
+        ),
+    )
+
+    def _show_result(title: str, msg: str, success: bool = True):
+        _r_icon.name   = ft.Icons.CHECK_CIRCLE if success else ft.Icons.ERROR_OUTLINE
+        _r_icon.color  = ft.Colors.GREEN_700   if success else ft.Colors.RED_700
+        _r_title.value = title
+        _r_title.color = ft.Colors.GREEN_700   if success else ft.Colors.RED_700
+        _r_msg.value   = msg
+        result_sheet.open = True
+        page.update()
+
+    # ==========================================
+    # 🌟 상세보기 BottomSheet
     # ==========================================
     detail_col   = ft.Column(scroll=ft.ScrollMode.AUTO, spacing=10, expand=True)
-    _current_rid = {"id": None}   # 삭제 시 사용할 현재 레코드 ID
+    _current_rid = {"id": None}
 
     def _close_detail(e):
         detail_sheet.open = False
         page.update()
 
     def _html_from_detail(e):
+        """
+        기록 상세보기에서 보고서 발행 + 이메일 전송
+        checklist_view.py 와 동일한 2단계 흐름:
+          1단계: HTML 파일 생성 → (True, save_path) 반환
+          2단계: 저장된 경로를 이메일로 전송
+        """
         data = _current_rid.get("report_data")
         if not data:
             return
-        success, msg = generate_html_report(data)
+
+        # 상세보기 시트 먼저 닫기
         detail_sheet.open = False
-        page.snack_bar = ft.SnackBar(
-            ft.Text("다운로드 폴더에 보고서가 저장되었습니다!" if success else f"발행 실패: {msg}"),
-            bgcolor=ft.Colors.BLUE_800 if success else ft.Colors.RED_700,
-        )
-        page.snack_bar.open = True
         page.update()
+
+        try:
+            # 1단계: HTML 파일 생성
+            ok, result = generate_html_report(data)
+
+            if not ok:
+                _show_result(title="발행 실패", msg=f"보고서 생성 실패:\n{result}", success=False)
+                return
+
+            html_path = result   # 저장된 파일 경로
+
+            # 2단계: 이메일 전송
+            email_ok, email_msg = send_report_email(html_path, data)
+
+            if email_ok:
+                _show_result(
+                    title="발행 및 전송 완료",
+                    msg="보고서가 저장되고\n관리자 이메일로 전송되었습니다.",
+                    success=True,
+                )
+            else:
+                _show_result(
+                    title="보고서 저장 완료",
+                    msg=f"기기에 저장되었습니다.\n(이메일 전송 실패: {email_msg})",
+                    success=False,
+                )
+
+        except Exception as ex:
+            _show_result(title="오류 발생", msg=f"보고서 발행 중 오류:\n{ex}", success=False)
 
     def _request_delete(e):
         detail_sheet.open = False
@@ -44,12 +119,11 @@ def HistoryView(page: ft.Page):
                 tight=True,
                 spacing=0,
                 controls=[
-                    # 헤더 버튼 행
                     ft.Row([
                         ft.IconButton(
                             ft.Icons.PICTURE_AS_PDF,
                             icon_color=ft.Colors.BLUE_800,
-                            tooltip="HTML 보고서 발행",
+                            tooltip="HTML 보고서 발행 + 이메일 전송",
                             on_click=_html_from_detail,
                         ),
                         ft.IconButton(
@@ -62,7 +136,6 @@ def HistoryView(page: ft.Page):
                         ft.TextButton("닫기", on_click=_close_detail),
                     ]),
                     ft.Divider(height=4),
-                    # 스크롤 가능한 상세 내용
                     ft.Container(
                         content=detail_col,
                         height=480,
@@ -104,8 +177,8 @@ def HistoryView(page: ft.Page):
                     ft.Row([
                         ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED,
                                 color=ft.Colors.RED_600, size=24),
-                        ft.Text("기록 삭제",
-                                size=18, weight=ft.FontWeight.BOLD,
+                        ft.Text("기록 삭제", size=18,
+                                weight=ft.FontWeight.BOLD,
                                 color=ft.Colors.RED_600),
                     ], spacing=8),
                     ft.Text(
@@ -131,18 +204,17 @@ def HistoryView(page: ft.Page):
         ),
     )
 
-    page.overlay.extend([detail_sheet, delete_sheet])
+    # ✅ overlay 등록 — result_sheet 포함
+    page.overlay.extend([result_sheet, detail_sheet, delete_sheet])
 
     # ==========================================
-    # 🌟 카드 클릭 시 상세보기 BottomSheet 열기
+    # 🌟 카드 클릭 시 상세보기 열기
     # ==========================================
     def _open_detail(record_id, t_name, t_date, t_time, loc,
                      m_name, w_type, results_json, sig_json, c_at):
 
-        # 레코드 ID 및 보고서 데이터 저장
         _current_rid["id"] = record_id
 
-        # JSON 파싱
         try:
             results_dict = json.loads(results_json)
         except Exception:
@@ -164,7 +236,6 @@ def HistoryView(page: ft.Page):
             "signature":     sig_strokes,
         }
 
-        # 상세 내용 구성
         detail_col.controls.clear()
 
         # 기본정보
@@ -195,26 +266,25 @@ def HistoryView(page: ft.Page):
         )
         for item_text, result in results_dict.items():
             if result == "확인":
-                icon_name = ft.Icons.CHECK_CIRCLE
+                icon_name  = ft.Icons.CHECK_CIRCLE
                 icon_color = ft.Colors.GREEN_600
                 text_color = ft.Colors.GREEN_800
+                bg_color   = ft.Colors.GREEN_50
             else:
-                icon_name = ft.Icons.REMOVE_CIRCLE_OUTLINE
+                icon_name  = ft.Icons.REMOVE_CIRCLE_OUTLINE
                 icon_color = ft.Colors.GREY_400
                 text_color = ft.Colors.GREY_600
+                bg_color   = ft.Colors.GREY_50
 
             detail_col.controls.append(
                 ft.Container(
                     content=ft.Row([
                         ft.Icon(icon_name, color=icon_color, size=16),
-                        ft.Text(item_text, size=12,
-                                color=text_color, expand=True),
-                        ft.Text(result, size=12,
-                                weight=ft.FontWeight.BOLD,
-                                color=icon_color),
+                        ft.Text(item_text, size=12, color=text_color, expand=True),
+                        ft.Text(result, size=12, weight=ft.FontWeight.BOLD, color=icon_color),
                     ], spacing=8),
                     padding=ft.Padding(8, 6, 8, 6),
-                    bgcolor=ft.Colors.GREEN_50 if result == "확인" else ft.Colors.GREY_50,
+                    bgcolor=bg_color,
                     border_radius=6,
                 )
             )
@@ -282,16 +352,16 @@ def HistoryView(page: ft.Page):
             )
         else:
             for row in records:
-                record_id         = row[0]
-                task_name         = row[1]
-                task_date         = row[2]
-                task_time         = row[3] if len(row) > 3 else ""
-                location          = row[4] if len(row) > 4 else ""
-                manager_name      = row[5]
-                work_type         = row[6]
+                record_id          = row[0]
+                task_name          = row[1]
+                task_date          = row[2]
+                task_time          = row[3] if len(row) > 3 else ""
+                location           = row[4] if len(row) > 4 else ""
+                manager_name       = row[5]
+                work_type          = row[6]
                 check_results_json = row[7]
-                signature_json    = row[8]
-                created_at        = row[9]
+                signature_json     = row[8]
+                created_at         = row[9]
 
                 def make_click(rid, tn, td, tt, loc, mn, wt, rj, sj, ca):
                     return lambda e: _open_detail(rid, tn, td, tt, loc, mn, wt, rj, sj, ca)
