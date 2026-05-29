@@ -3,17 +3,11 @@ import json
 import os
 from datetime import datetime
 
-# ✅ DB 파일 위치 — Windows/Android 공통 안전 경로
-# Windows  : 프로젝트 루트 폴더에 생성 (main.py 옆)
-# Android  : APK 실행 시 Flet이 CWD를 앱 전용 쓰기 가능 폴더로 설정해주므로
-#            os.getcwd() 가 가장 안전한 기준점
 import platform as _platform
 
 if _platform.system() == "Windows":
-    # 개발 환경: database/ 폴더 한 단계 위(프로젝트 루트)에 생성
     _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 else:
-    # Android APK: Flet이 설정한 앱 전용 쓰기 가능 CWD 사용
     _BASE_DIR = os.getcwd()
 
 DB_FILE = os.path.join(_BASE_DIR, "dtro_safety.db")
@@ -21,11 +15,9 @@ DB_FILE = os.path.join(_BASE_DIR, "dtro_safety.db")
 
 def init_db():
     """앱 최초 실행 시 DB 파일과 테이블을 생성합니다."""
-    # ✅ with 문으로 커넥션 자동 close 보장
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
 
-        # 점검 기록 테이블
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS checklist_records (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,7 +33,6 @@ def init_db():
             )
         ''')
 
-        # 작업자 명단 테이블
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS workers (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +42,51 @@ def init_db():
             )
         ''')
 
+        # ✅ 이메일 설정 테이블 추가
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            )
+        ''')
+
         conn.commit()
+
+
+# ==========================================
+# 이메일 설정 저장/조회
+# ==========================================
+def save_email_settings(sender_email: str, sender_password: str, receiver_email: str):
+    """이메일 발송 설정을 DB에 저장합니다."""
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            for key, value in [
+                ("email_sender",   sender_email),
+                ("email_password", sender_password),
+                ("email_receiver", receiver_email),
+            ]:
+                conn.execute(
+                    "INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)",
+                    (key, value)
+                )
+            conn.commit()
+        return True, "설정이 저장되었습니다."
+    except sqlite3.Error as ex:
+        return False, str(ex)
+
+
+def get_email_settings() -> dict:
+    """저장된 이메일 설정을 딕셔너리로 반환합니다."""
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.execute(
+                "SELECT key, value FROM app_settings WHERE key IN "
+                "('email_sender','email_password','email_receiver')"
+            )
+            rows = cursor.fetchall()
+        return {row[0]: row[1] for row in rows}
+    except sqlite3.Error:
+        return {}
 
 
 def save_checklist(task_name, task_date, task_time, location,
@@ -59,8 +94,6 @@ def save_checklist(task_name, task_date, task_time, location,
     results_json   = json.dumps(check_results_dict, ensure_ascii=False)
     signature_json = json.dumps(signature_strokes)
     current_time   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # ✅ with 문 + 예외 처리로 안전한 저장
     try:
         with sqlite3.connect(DB_FILE) as conn:
             conn.execute('''
@@ -74,15 +107,13 @@ def save_checklist(task_name, task_date, task_time, location,
         print(f"[{current_time}] 저장 완료 (책임자: {manager_name}, 종류: {work_type})")
     except sqlite3.Error as ex:
         print(f"[DB 오류] save_checklist: {ex}")
-        raise   # checklist_view.py의 try/except로 전달
+        raise
 
 
 def get_all_records():
     try:
         with sqlite3.connect(DB_FILE) as conn:
-            cursor = conn.execute(
-                'SELECT * FROM checklist_records ORDER BY id DESC'
-            )
+            cursor = conn.execute('SELECT * FROM checklist_records ORDER BY id DESC')
             return cursor.fetchall()
     except sqlite3.Error as ex:
         print(f"[DB 오류] get_all_records: {ex}")
@@ -92,9 +123,7 @@ def get_all_records():
 def delete_record(record_id):
     try:
         with sqlite3.connect(DB_FILE) as conn:
-            conn.execute(
-                "DELETE FROM checklist_records WHERE id = ?", (record_id,)
-            )
+            conn.execute("DELETE FROM checklist_records WHERE id = ?", (record_id,))
             conn.commit()
     except sqlite3.Error as ex:
         print(f"[DB 오류] delete_record: {ex}")
@@ -107,7 +136,7 @@ def delete_all_records():
             conn.commit()
     except sqlite3.Error as ex:
         print(f"[DB 오류] delete_all_records: {ex}")
-        raise   # settings_view.py의 try/except로 전달
+        raise
 
 
 def add_worker(name, department, phone):
@@ -125,9 +154,7 @@ def add_worker(name, department, phone):
 def get_all_workers():
     try:
         with sqlite3.connect(DB_FILE) as conn:
-            cursor = conn.execute(
-                "SELECT * FROM workers ORDER BY name ASC"
-            )
+            cursor = conn.execute("SELECT * FROM workers ORDER BY name ASC")
             return cursor.fetchall()
     except sqlite3.Error as ex:
         print(f"[DB 오류] get_all_workers: {ex}")
@@ -137,9 +164,7 @@ def get_all_workers():
 def delete_worker(worker_id):
     try:
         with sqlite3.connect(DB_FILE) as conn:
-            conn.execute(
-                "DELETE FROM workers WHERE id = ?", (worker_id,)
-            )
+            conn.execute("DELETE FROM workers WHERE id = ?", (worker_id,))
             conn.commit()
     except sqlite3.Error as ex:
         print(f"[DB 오류] delete_worker: {ex}")

@@ -4,6 +4,7 @@ from datetime import datetime
 from database.db_manager import save_checklist, get_all_workers
 import components.styles as style
 from utils.report_generator import generate_html_report
+from utils.email_sender import send_report_email
 
 
 def ChecklistView(page: ft.Page):
@@ -627,7 +628,7 @@ def ChecklistView(page: ft.Page):
             )
 
     # ==========================================
-    # 🌟 10. HTML 보고서 발행
+    # 🌟 10. HTML 보고서 발행 + 이메일 전송
     # ==========================================
     def on_html_report_click(e):
         # 기본정보 검증
@@ -657,15 +658,34 @@ def ChecklistView(page: ft.Page):
         }
 
         try:
-            ok, msg = generate_html_report(data)
-            if ok:
+            # 1단계: 기기(다운로드 폴더)에 HTML 파일 생성
+            # generate_html_report는 (True, 저장경로) 또는 (False, 오류메시지) 반환
+            ok, result = generate_html_report(data)
+
+            if not ok:
+                _show_result(title="발행 실패", msg=f"보고서 생성 실패:\n{result}", success=False)
+                return
+
+            html_path = result   # 저장된 파일의 전체 경로
+
+            # 2단계: 생성된 파일을 관리자 이메일로 전송
+            # 설정탭에서 이메일 설정이 없으면 경고 없이 로컬 저장만 완료 처리
+            email_ok, email_msg = send_report_email(html_path, data)
+
+            if email_ok:
                 _show_result(
-                    title="보고서 발행 완료",
-                    msg="HTML 보고서가 기기의\n다운로드 폴더에 저장되었습니다.",
+                    title="발행 및 전송 완료",
+                    msg="보고서가 저장되고\n관리자 이메일로 전송되었습니다.",
                     success=True,
                 )
             else:
-                _show_result(title="발행 실패", msg=f"보고서 생성 실패:\n{msg}", success=False)
+                # 이메일 실패여도 파일은 저장되었으므로 경고로만 안내
+                _show_result(
+                    title="보고서 저장 완료",
+                    msg=f"기기에 저장되었습니다.\n(이메일 전송 실패: {email_msg})",
+                    success=False,
+                )
+
         except Exception as ex:
             _show_result(title="오류 발생", msg=f"보고서 발행 중 오류:\n{ex}", success=False)
 

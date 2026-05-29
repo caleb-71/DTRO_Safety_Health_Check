@@ -119,6 +119,6 @@ def generate_html_report(data, save_path=None):
     try:
         with open(save_path, "w", encoding="utf-8") as f:
             f.write(html_content)
-        return True, "저장 성공"
+        return True, save_path   # ✅ 이메일 첨부를 위해 저장 경로 반환
     except Exception as e:
         return False, str(e)
