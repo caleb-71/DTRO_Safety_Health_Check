@@ -1,6 +1,6 @@
 [project]
 name = "dtro_safety_health_check"
-version = "1.0.0"
+version = "1.0.2"
 description = "DTRO 안전보건 체크리스트"
 requires-python = ">=3.10"
 dependencies = [
